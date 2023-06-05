@@ -4,7 +4,7 @@ import App from "./App";
 import { createRoot } from "react-dom/client";
 
 createRoot(document.getElementById("root")).render(
-  <>
+  <React.Fragment>
     <App />
-  </>
+  </React.Fragment>
 );

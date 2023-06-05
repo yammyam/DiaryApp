@@ -1,6 +1,11 @@
-import { useRef, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
+import { DiaryDispatchContext } from "./App";
 
-const DiaryEditor = ({ onCreate }) => {
+const DiaryEditor = () => {
+  // useEffect(() => {
+  //   console.log("DiaryEditor 렌더"); //부모인 app에서 렌더링 두번일어남, 콘솔 두번찍힘.
+  // });
+  const { onCreate } = useContext(DiaryDispatchContext);
   const authorInput = useRef();
   const contentInput = useRef();
 
@@ -80,4 +85,7 @@ const DiaryEditor = ({ onCreate }) => {
     </div>
   );
 };
-export default DiaryEditor;
+
+export default React.memo(DiaryEditor);
+//위처럼 묶어도 되지만 export default React.memo(DiaryEditor); 도 가능
+//근데 export 할때 하는게 맞음 이렇게말고 위에서 감싸고 내려오면 함수이름 익명(Anonymous)로 바뀌어서 인식을 못함.

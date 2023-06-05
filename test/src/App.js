@@ -1,12 +1,21 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  useReducer,
+} from "react";
 import "./App.css";
 import DiaryEditor from "./DiaryEditor";
 import DiaryList from "./DiaryList";
 import axios from "axios";
+import Reducer from "./Reducer";
+
+export const DiaryStateContext = React.createContext();
+export const DiaryDispatchContext = React.createContext();
 
 const App = () => {
-  const [data, setData] = useState([]);
-
+  const [data, dispatch] = useReducer(Reducer, []);
   const dataId = useRef(0);
 
   useEffect(() => {
@@ -27,37 +36,34 @@ const App = () => {
           id: dataId.current++,
         };
       });
-      setData(initData);
+      dispatch({ type: "INIT", data: initData });
     } catch (error) {
       console.log(error);
     }
   };
 
-  const onCreate = (author, content, emotion) => {
-    const created_date = new Date().getTime();
-    const newItem = {
-      author,
-      content,
-      emotion,
-      created_date,
-      id: dataId.current,
-    };
+  const onCreate = useCallback((author, content, emotion) => {
+    //onCreate의 변화가 없어야 DiaryEditor 의 렌더링이 여러번 일어나지않음 그렇다고 useMemo를 사용하게되면 값을 반환하기때문에 " 함수 " 를 보내는게 아니게 되니 사용하면 안됨.
+    //함수반환하려면 useCallback 해야함.
+    dispatch({
+      type: "CREATE",
+      data: { author, content, emotion, id: dataId.current },
+    });
     dataId.current += 1;
-    setData([newItem, ...data]);
-  };
+    //함수형 업데이트를 활용하자. 상태변경함수에  함수를 넣는게 함수형 업데이튿
+  }, []);
 
-  const onRemove = (targetId) => {
-    const newDiaryList = data.filter((it) => it.id !== targetId);
-    setData(newDiaryList);
-  };
+  const onRemove = useCallback((targetId) => {
+    dispatch({ type: "REMOVE", data: targetId });
+  }, []);
 
-  const onEdit = (targetId, newContent) => {
-    setData(
-      data.map((it) =>
-        it.id === targetId ? { ...it, content: newContent } : it
-      )
-    );
-  };
+  const onEdit = useCallback((targetId, newContent) => {
+    dispatch({ type: "EDIT", targetId, newContent });
+  }, []);
+
+  const memoDispatch = useMemo(() => {
+    return { onCreate, onEdit, onRemove };
+  }, []);
 
   const getDiaryAnalysis = useMemo(() => {
     //저장하고 싶은 함수를 감싸주면된다 .
@@ -70,18 +76,24 @@ const App = () => {
     return analyzeDiary;
   }, [data]);
 
-  const { goodCount, badCount, goodRatio } = getDiaryAnalysis(); // 여기서 겟다이어리애널시스가 함수가아니라 리턴하는 하나의 값이기떄문에 함수로 호출하면 낫펑션 오류가 생김
+  const { goodCount, badCount, goodRatio } = getDiaryAnalysis(); // 여기서 getDiaryAnalysis가 함수가아니라 리턴하는 하나의 값이기떄문에 함수로 호출하면 낫펑션 오류가 생김
 
   return (
-    <div className="App">
-      <DiaryEditor onCreate={onCreate} />
-      <div>전체일기 : {data.length}</div>
-      <div>좋네요 : {goodCount}</div>
-      <div>안좋네요 : {badCount}</div>
-      <div>좋비율 : {goodRatio}</div>
-      <div>{typeof goodRatio}</div>
-      <DiaryList onEdit={onEdit} onRemove={onRemove} diaryList={data} />
-    </div>
+    <DiaryStateContext.Provider value={data}>
+      <DiaryDispatchContext.Provider value={memoDispatch}>
+        <div className="App">
+          <DiaryEditor />
+          <div>전체일기 : {data.length}</div>
+          <div>좋은 일기 개수 : {goodCount}</div>
+          <div>안좋은 일기 개수 : {badCount}</div>
+          <div>좋아요 비율 : {goodRatio}</div>
+          <div>{typeof goodRatio}</div>
+          <DiaryList />
+        </div>
+      </DiaryDispatchContext.Provider>
+    </DiaryStateContext.Provider>
   );
 };
 export default App;
+//export default 의 default 붙이는건 파일 하나당 한번만 가능함.
+//기본적으로 App.js를 내보내고 있고 그냥 export 만 붙은 부가적인 함수인 "DiaryStateContext"를 !!부가적!!으로 내보내고 있음.
